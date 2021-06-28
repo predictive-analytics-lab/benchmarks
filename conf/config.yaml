@@ -1,5 +1,6 @@
 # main config file
 defaults:
+  - config_schema
   - override experiment: celeba_dataloading
 
 data_dir: /srv/galene0/shared/data
