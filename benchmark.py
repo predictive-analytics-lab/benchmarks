@@ -1,19 +1,19 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
+from time import monotonic
 from typing_extensions import Final
 
 import ethicml as em
 from ethicml import vision as emvi
 import hydra
 from hydra.core.config_store import ConfigStore
+import numpy as np
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 import wandb
-from time import monotonic
-import numpy as np
 
 
 class WandbMode(Enum):
