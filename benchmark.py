@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 from time import monotonic
+from typing import Optional
 from typing_extensions import Final
 
 import ethicml as em
@@ -41,6 +42,8 @@ class Config:
     num_workers: int
     wandb: WandbMode
     gpu: int
+    group: Optional[str] = None
+    seed: int = 42
 
 
 cs = ConfigStore.instance()
@@ -62,20 +65,17 @@ def main(cfg: Config):
         project="benchmark",
         config=OmegaConf.to_container(cfg, enum_to_str=True, resolve=True),
         mode=cfg.wandb.name,
+        group=cfg.group,
     )
 
     # ===== data =====
     if cfg.dataset is Dataset.celeba:
         dataset, base_dir = em.celeba(
-            download_dir=cfg.data_dir,
-            label=target_attr,
-            sens_attr=sens_attr,
-            download=False,
-            check_integrity=True,
+            download_dir=cfg.data_dir, label=target_attr, sens_attr=sens_attr, download=False
         )
-        assert dataset is not None
+        assert dataset is not None, "could not load dataset"
         data_tup = dataset.load()
-        data_tup, _ = em.train_test_split(data_tup, train_percentage=0.2, random_seed=0)
+        data_tup, _ = em.train_test_split(data_tup, train_percentage=0.2, random_seed=cfg.seed)
 
         trafos = transforms.Compose(
             [
