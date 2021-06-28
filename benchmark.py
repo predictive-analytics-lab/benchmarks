@@ -96,6 +96,7 @@ def main(cfg: Config):
     )
 
     samples_per_second = np.zeros(len(loader))
+    batches_per_second = np.zeros(len(loader))
 
     start = monotonic()
     for i, (x, _, _) in enumerate(tqdm(loader)):
@@ -103,24 +104,29 @@ def main(cfg: Config):
         _ = x.mean()
         end = monotonic()
 
-        per_second = x.size(0) / (end - start)
-        samples_per_second[i] = per_second
+        samples_per_second_ = x.size(0) / (end - start)
+        batches_per_second_ = 1 / (end - start)
+        samples_per_second[i] = samples_per_second_
+        batches_per_second[i] = batches_per_second_
 
-        run.log({"samples_per_second": per_second}, step=i + 1)
+        run.log({"samples_per_second": samples_per_second_}, step=i + 1)
+        run.log({"batches_per_second": batches_per_second_}, step=i + 1)
         start = monotonic()
 
-    for (name, func) in [
-        ("mean", np.mean),
-        ("std", np.std),
-        ("median", np.median),
-        ("min", np.min),
-        ("max", np.max),
-        ("25 percentile", lambda a: np.quantile(a, q=0.25)),
-        ("75 percentile", lambda a: np.quantile(a, q=0.75)),
-    ]:
-        agg = func(samples_per_second)
-        print(f"aggregates/{name}: {agg:.4g}")
-        run.summary[f"aggregates/{name}"] = agg
+    for name, measurements in (("samples", samples_per_second), ("batches", batches_per_second)):
+        for (agg_name, agg_func) in [
+            ("mean", np.mean),
+            ("std", np.std),
+            ("median", np.median),
+            ("min", np.min),
+            ("max", np.max),
+            ("25 percentile", lambda a: np.quantile(a, q=0.25)),
+            ("75 percentile", lambda a: np.quantile(a, q=0.75)),
+            ("IQR", lambda a: np.quantile(a, q=0.75) - np.quantile(a, q=0.25)),
+        ]:
+            agg = agg_func(measurements)
+            print(f"{name}/{agg_name}: {agg:.4g}")
+            run.summary[f"{name}/{agg_name}"] = agg
 
     run.finish()
 
