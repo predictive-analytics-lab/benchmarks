@@ -97,8 +97,8 @@ def main(cfg: Config):
 
     samples_per_second = np.zeros(len(loader))
 
+    start = monotonic()
     for i, (x, _, _) in enumerate(tqdm(loader)):
-        start = monotonic()
         x = x.to(device)
         _ = x.mean()
         end = monotonic()
@@ -107,6 +107,7 @@ def main(cfg: Config):
         samples_per_second[i] = per_second
 
         run.log({"samples_per_second": per_second}, step=i + 1)
+        start = monotonic()
 
     for (name, func) in [
         ("mean", np.mean),
