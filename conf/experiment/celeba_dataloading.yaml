@@ -1,4 +1,5 @@
 # @package _global_
 
 batch_size: 256
+img_size: 224
 dataset: celeba

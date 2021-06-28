@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 import wandb
+from torchvision import transforms
 
 
 class WandbMode(Enum):
@@ -34,6 +35,7 @@ class Dataset(Enum):
 class Config:
     data_dir: str
     dataset: Dataset
+    img_size: int
     batch_size: int
     num_workers: int
     wandb: WandbMode
@@ -70,7 +72,16 @@ def main(cfg: Config):
         assert dataset is not None
         data_tup = dataset.load()
 
-        data = emvi.TorchImageDataset(data=data_tup, root=base_dir)
+        trafos = transforms.Compose(
+            [
+                transforms.RandomResizedCrop(cfg.img_size),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+                transforms.ToTensor(),
+            ]
+        )
+
+        data = emvi.TorchImageDataset(data=data_tup, root=base_dir, transform=trafos)
     else:
         raise ValueError("unknown dataset")
 
@@ -81,7 +92,7 @@ def main(cfg: Config):
 
     batch_times = np.zeros(len(loader))
 
-    for i, (x, s, y) in enumerate(loader):
+    for i, (x, _, _) in enumerate(loader):
         start = monotonic()
         x = x.to(device)
         _ = x.mean()
