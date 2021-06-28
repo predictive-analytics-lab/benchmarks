@@ -40,6 +40,7 @@ class Config:
     batch_size: int
     num_workers: int
     wandb: WandbMode
+    gpu: int
 
 
 cs = ConfigStore.instance()
@@ -49,10 +50,11 @@ cs.store(name="config_schema", node=Config)
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: Config):
     # ===== settings =====
-    device = torch.device("cuda:0")
+    device = torch.device(f"cuda:{cfg.gpu}")
     sens_attr: Final = "Male"
     target_attr: Final = "Smiling"
     print(OmegaConf.to_yaml(cfg, sort_keys=True, resolve=True))
+    print("=" * 20)
 
     # ===== logging =====
     run = wandb.init(
@@ -73,6 +75,7 @@ def main(cfg: Config):
         )
         assert dataset is not None
         data_tup = dataset.load()
+        data_tup, _ = em.train_test_split(data_tup, train_percentage=0.2, random_seed=0)
 
         trafos = transforms.Compose(
             [
@@ -92,7 +95,7 @@ def main(cfg: Config):
         dataset=data, batch_size=cfg.batch_size, num_workers=cfg.num_workers
     )
 
-    batch_times = np.zeros(len(loader))
+    samples_per_second = np.zeros(len(loader))
 
     for i, (x, _, _) in enumerate(tqdm(loader)):
         start = monotonic()
@@ -100,10 +103,10 @@ def main(cfg: Config):
         _ = x.mean()
         end = monotonic()
 
-        batch_time = end - start
-        batch_times[i] = batch_time
+        per_second = x.size(0) / (end - start)
+        samples_per_second[i] = per_second
 
-        run.log({"batch_time": batch_time}, step=i + 1)
+        run.log({"samples_per_second": per_second}, step=i + 1)
 
     for (name, func) in [
         ("mean", np.mean),
@@ -114,7 +117,7 @@ def main(cfg: Config):
         ("25 percentile", lambda a: np.quantile(a, q=0.25)),
         ("75 percentile", lambda a: np.quantile(a, q=0.75)),
     ]:
-        agg = func(batch_times)
+        agg = func(samples_per_second)
         print(f"aggregates/{name}: {agg:.4g}")
         run.summary[f"aggregates/{name}"] = agg
 

@@ -6,3 +6,4 @@ defaults:
 data_dir: /srv/galene0/shared/data
 num_workers: 3
 wandb: online
+gpu: 0
