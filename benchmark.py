@@ -13,6 +13,8 @@ from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
+from torchvision import transforms
+from tqdm import tqdm
 import wandb
 
 
@@ -34,13 +36,14 @@ class Dataset(Enum):
 class Config:
     data_dir: str
     dataset: Dataset
+    img_size: int
     batch_size: int
     num_workers: int
     wandb: WandbMode
 
 
 cs = ConfigStore.instance()
-cs.store(name="config", node=Config)
+cs.store(name="config_schema", node=Config)
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -49,6 +52,7 @@ def main(cfg: Config):
     device = torch.device("cuda:0")
     sens_attr: Final = "Male"
     target_attr: Final = "Smiling"
+    print(OmegaConf.to_yaml(cfg, sort_keys=True, resolve=True))
 
     # ===== logging =====
     run = wandb.init(
@@ -70,7 +74,16 @@ def main(cfg: Config):
         assert dataset is not None
         data_tup = dataset.load()
 
-        data = emvi.TorchImageDataset(data=data_tup, root=base_dir)
+        trafos = transforms.Compose(
+            [
+                transforms.RandomResizedCrop(cfg.img_size),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ToTensor(),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            ]
+        )
+
+        data = emvi.TorchImageDataset(data=data_tup, root=base_dir, transform=trafos)
     else:
         raise ValueError("unknown dataset")
 
@@ -81,7 +94,7 @@ def main(cfg: Config):
 
     batch_times = np.zeros(len(loader))
 
-    for i, (x, s, y) in enumerate(loader):
+    for i, (x, _, _) in enumerate(tqdm(loader)):
         start = monotonic()
         x = x.to(device)
         _ = x.mean()
@@ -101,6 +114,12 @@ def main(cfg: Config):
         ("25 percentile", lambda a: np.quantile(a, q=0.25)),
         ("75 percentile", lambda a: np.quantile(a, q=0.75)),
     ]:
-        run.summary[f"aggregates/{name}"] = func(batch_times)
+        agg = func(batch_times)
+        print(f"aggregates/{name}: {agg:.4g}")
+        run.summary[f"aggregates/{name}"] = agg
 
     run.finish()
+
+
+if __name__ == "__main__":
+    main()
