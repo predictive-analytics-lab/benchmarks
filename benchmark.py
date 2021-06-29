@@ -45,7 +45,6 @@ class Config:
     group: Optional[str] = None
     seed: int = 42
     pin_memory: bool = True
-    non_blocking: bool = True
 
 
 cs = ConfigStore.instance()
@@ -105,7 +104,7 @@ def main(cfg: Config):
 
     start = monotonic()
     start_total = monotonic()
-    non_blocking = cfg.non_blocking
+    non_blocking = cfg.pin_memory
     for i, (x, _, _) in enumerate(tqdm(loader)):
         x = x.to(device, non_blocking=non_blocking)
         _ = x.mean()
