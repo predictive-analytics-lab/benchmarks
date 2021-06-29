@@ -44,6 +44,8 @@ class Config:
     gpu: int
     group: Optional[str] = None
     seed: int = 42
+    pin_memory: bool = True
+    non_blocking: bool = True
 
 
 cs = ConfigStore.instance()
@@ -92,15 +94,20 @@ def main(cfg: Config):
 
     # ===== loading =====
     loader: DataLoader[tuple[Tensor, Tensor, Tensor]] = DataLoader(
-        dataset=data, batch_size=cfg.batch_size, num_workers=cfg.num_workers
+        dataset=data,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.num_workers,
+        pin_memory=cfg.pin_memory,
     )
 
     samples_per_second = np.zeros(len(loader))
     batches_per_second = np.zeros(len(loader))
 
     start = monotonic()
+    start_total = monotonic()
+    non_blocking = cfg.non_blocking
     for i, (x, _, _) in enumerate(tqdm(loader)):
-        x = x.to(device)
+        x = x.to(device, non_blocking=non_blocking)
         _ = x.mean()
         end = monotonic()
 
@@ -112,6 +119,10 @@ def main(cfg: Config):
         run.log({"samples_per_second": samples_per_second_}, step=i + 1)
         run.log({"batches_per_second": batches_per_second_}, step=i + 1)
         start = monotonic()
+
+    total_time = monotonic() - start_total
+    run.summary["total_samples_per_second"] = len(data) / total_time
+    run.summary["total_batches_per_second"] = len(loader) / total_time
 
     for name, measurements in (("samples", samples_per_second), ("batches", batches_per_second)):
         for (agg_name, agg_func) in [
