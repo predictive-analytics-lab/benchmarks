@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
-from time import monotonic
+from time import perf_counter
 from typing import Optional
 from typing_extensions import Final
 
@@ -102,13 +102,13 @@ def main(cfg: Config):
     samples_per_second = np.zeros(len(loader))
     batches_per_second = np.zeros(len(loader))
 
-    start = monotonic()
-    start_total = monotonic()
+    start = perf_counter()
+    start_total = perf_counter()
     non_blocking = cfg.pin_memory
     for i, (x, _, _) in enumerate(tqdm(loader)):
         x = x.to(device, non_blocking=non_blocking)
         _ = x.mean()
-        end = monotonic()
+        end = perf_counter()
 
         samples_per_second_ = x.size(0) / (end - start)
         batches_per_second_ = 1 / (end - start)
@@ -117,9 +117,9 @@ def main(cfg: Config):
 
         run.log({"samples_per_second": samples_per_second_}, step=i + 1)
         run.log({"batches_per_second": batches_per_second_}, step=i + 1)
-        start = monotonic()
+        start = perf_counter()
 
-    total_time = monotonic() - start_total
+    total_time = perf_counter() - start_total
     run.summary["total_samples_per_second"] = len(data) / total_time
     run.summary["total_batches_per_second"] = len(loader) / total_time
 
