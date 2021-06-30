@@ -119,6 +119,7 @@ def main(cfg: Config):
         run.log({"batches_per_second": batches_per_second_}, step=i + 1)
         start = perf_counter()
 
+    torch.cuda.synchronize(device=device)
     total_time = perf_counter() - start_total
     run.summary["total_samples_per_second"] = len(data) / total_time
     run.summary["total_batches_per_second"] = len(loader) / total_time
