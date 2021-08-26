@@ -25,11 +25,15 @@ INTERVAL: Final = 5.0  # in seconds
 
 
 def main() -> None:
-    db_connection = connect_db()
-    while True:
-        rows = get_new_rows()  # from nvidia-smi
-        insert_values(db_connection, rows)
-        time.sleep(INTERVAL)
+    db_cur, db_con = connect_db()
+    try:
+        while True:
+            rows = get_new_rows()  # from nvidia-smi
+            insert_values(db_cur, rows)
+            db_con.commit()
+            time.sleep(INTERVAL)
+    finally:
+        db_con.close()
 
 
 def get_new_rows() -> list[dict]:
@@ -67,7 +71,7 @@ def parse(row: dict) -> None:
     row["power.draw [W]"] = float(row["power.draw [W]"].rstrip(" W"))
 
 
-def connect_db() -> sqlite3.Cursor:
+def connect_db() -> tuple[sqlite3.Cursor, sqlite3.Connection]:
     con = sqlite3.connect(DB_FILE_NAME)
     cur = con.cursor()
     cur.execute(
@@ -83,7 +87,7 @@ def connect_db() -> sqlite3.Cursor:
                     "temperature_gpu" REAL,
                     "power_draw [W]" REAL)"""
     )
-    return cur
+    return cur, con
 
 
 def insert_values(cur: sqlite3.Cursor, rows):
