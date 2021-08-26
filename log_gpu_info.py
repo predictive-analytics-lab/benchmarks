@@ -19,6 +19,7 @@ QUERIES: Final = [
     "utilization.memory",
     "temperature.gpu",
     "power.draw",
+    "fan.speed",
 ]
 DB_FILE_NAME: Final = "gpu_info.db"
 INTERVAL: Final = 5.0  # in seconds
@@ -69,6 +70,7 @@ def parse(row: dict) -> None:
     row["utilization.memory [%]"] = float(row["utilization.memory [%]"].rstrip(" %"))
     row["temperature.gpu"] = float(row["temperature.gpu"])
     row["power.draw [W]"] = float(row["power.draw [W]"].rstrip(" W"))
+    row["fan.speed [%]"] = float(row["fan.speed [%]"].rstrip(" %"))
 
 
 def connect_db() -> tuple[sqlite3.Cursor, sqlite3.Connection]:
@@ -85,14 +87,15 @@ def connect_db() -> tuple[sqlite3.Cursor, sqlite3.Connection]:
                     "utilization_gpu [%]" REAL,
                     "utilization_memory [%]" REAL,
                     "temperature_gpu" REAL,
-                    "power_draw [W]" REAL)"""
+                    "power_draw [W]" REAL,
+                    "fan_speed [%]" REAL)"""
     )
     return cur, con
 
 
 def insert_values(cur: sqlite3.Cursor, rows):
     cur.executemany(
-        "INSERT INTO gpu_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO gpu_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [tuple(row.values()) for row in rows],
     )
 
